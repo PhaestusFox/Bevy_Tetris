@@ -1,0 +1,13 @@
+[package]
+name = "tetris"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.15"
+bevy_editor_pls = {git = "https://github.com/jakobhellermann/bevy_editor_pls.git"}
+leafwing-input-manager = "=0.16.0"
+rand = "*"
+
+[patch.crates-io]
+transform-gizmo-bevy = { git = "https://github.com/ActuallyHappening/transform-gizmo" }
