@@ -4,10 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = "0.15"
+bevy = {version = "0.15", features = ["serialize"]}
 bevy_editor_pls = {git = "https://github.com/jakobhellermann/bevy_editor_pls.git"}
 leafwing-input-manager = "=0.16.0"
 rand = "*"
+bevy_pkv = "0.12"
+serde = "*"
+strum = "*"
+strum_macros = "*"
+indexmap = "*"
 
 [patch.crates-io]
 transform-gizmo-bevy = { git = "https://github.com/ActuallyHappening/transform-gizmo" }

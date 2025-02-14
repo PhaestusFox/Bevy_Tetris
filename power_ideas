@@ -1,0 +1,9 @@
+sand_block - dose not sick to its shape once landed
+gravity block - allow gaps in shape
+lightning block - will complete row even if blocks are still falling
+wight block - sets the pivot point and makes block fall faster
+math block
+    - Number - makes a block worth that for clearing
+    - Mult - multiplies the rows value before buy the value after/before next math block
+    - Sub - makes rest of the row value negitive
+    - Div - divides the rows value before by the value after

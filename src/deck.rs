@@ -2,7 +2,10 @@ use bevy::prelude::*;
 use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
 
-use crate::board::{self, Block, Shape};
+use crate::{
+    board::{self, Block, Shape},
+    GameState,
+};
 
 #[derive(Resource)]
 pub struct Deck {
@@ -11,92 +14,100 @@ pub struct Deck {
 
 impl FromWorld for Deck {
     fn from_world(_world: &mut World) -> Self {
-        // Deck {
-        //     shapes: vec![
-        //         Shape {
-        //             center: IVec2::new(0, 1),
-        //             blocks: vec![
-        //                 IVec2::new(0, 0),
-        //                 IVec2::new(0, -1),
-        //                 IVec2::new(0, -2),
-        //                 IVec2::new(0, 1),
-        //             ],
-        //             color: bevy::color::palettes::css::LIGHT_BLUE.into(),
-        //         },
-        //         Shape {
-        //             center: IVec2::new(0, 0),
-        //             blocks: vec![
-        //                 IVec2::new(-1, 0),
-        //                 IVec2::new(0, 0),
-        //                 IVec2::new(0, -1),
-        //                 IVec2::new(1, -1),
-        //             ],
-        //             color: bevy::color::palettes::css::RED.into(),
-        //         },
-        //         Shape {
-        //             center: IVec2::new(0, 0),
-        //             blocks: vec![
-        //                 IVec2::new(-1, 0),
-        //                 IVec2::new(0, 0),
-        //                 IVec2::new(0, -1),
-        //                 IVec2::new(-1, -1),
-        //             ],
-        //             color: bevy::color::palettes::css::YELLOW.into(),
-        //         },
-        //         Shape {
-        //             center: IVec2::new(0, 0),
-        //             blocks: vec![
-        //                 IVec2::new(0, 1),
-        //                 IVec2::new(0, 0),
-        //                 IVec2::new(1, 0),
-        //                 IVec2::new(1, -1),
-        //             ],
-        //             color: bevy::color::palettes::css::LIGHT_GREEN.into(),
-        //         },
-        //         Shape {
-        //             center: IVec2::new(0, 0),
-        //             blocks: vec![
-        //                 IVec2::new(0, -1),
-        //                 IVec2::new(0, 0),
-        //                 IVec2::new(1, 0),
-        //                 IVec2::new(-1, 0),
-        //             ],
-        //             color: bevy::color::palettes::css::PURPLE.into(),
-        //         },
-        //         Shape {
-        //             center: IVec2::new(0, 0),
-        //             blocks: vec![
-        //                 IVec2::new(0, 2),
-        //                 IVec2::new(0, 1),
-        //                 IVec2::new(0, 0),
-        //                 IVec2::new(-1, 0),
-        //             ],
-        //             color: bevy::color::palettes::css::DARK_BLUE.into(),
-        //         },
-        //         Shape {
-        //             center: IVec2::new(0, 0),
-        //             blocks: vec![
-        //                 IVec2::new(0, 2),
-        //                 IVec2::new(0, 1),
-        //                 IVec2::new(0, 0),
-        //                 IVec2::new(1, 0),
-        //             ],
-        //             color: bevy::color::palettes::css::ORANGE.into(),
-        //         },
-        //     ],
-        // }
         Deck {
-            shapes: vec![Shape {
-                center: IVec2::new(0, 1),
-                blocks: vec![
-                    IVec2::new(0, 0),
-                    IVec2::new(0, -1),
-                    IVec2::new(0, -2),
-                    IVec2::new(0, 1),
-                ],
-                color: bevy::color::palettes::css::LIGHT_BLUE.into(),
-            }],
+            shapes: vec![
+                Shape {
+                    split: false,
+                    center: IVec2::new(0, 1),
+                    blocks: vec![
+                        IVec2::new(0, 0),
+                        IVec2::new(0, -1),
+                        IVec2::new(0, -2),
+                        IVec2::new(0, 1),
+                    ],
+                    color: bevy::color::palettes::css::LIGHT_BLUE.into(),
+                },
+                Shape {
+                    split: false,
+                    center: IVec2::new(0, 0),
+                    blocks: vec![
+                        IVec2::new(-1, 0),
+                        IVec2::new(0, 0),
+                        IVec2::new(0, -1),
+                        IVec2::new(1, -1),
+                    ],
+                    color: bevy::color::palettes::css::RED.into(),
+                },
+                Shape {
+                    split: false,
+                    center: IVec2::new(0, 0),
+                    blocks: vec![
+                        IVec2::new(-1, 0),
+                        IVec2::new(0, 0),
+                        IVec2::new(0, -1),
+                        IVec2::new(-1, -1),
+                    ],
+                    color: bevy::color::palettes::css::YELLOW.into(),
+                },
+                Shape {
+                    split: false,
+                    center: IVec2::new(0, 0),
+                    blocks: vec![
+                        IVec2::new(0, 1),
+                        IVec2::new(0, 0),
+                        IVec2::new(1, 0),
+                        IVec2::new(1, -1),
+                    ],
+                    color: bevy::color::palettes::css::LIGHT_GREEN.into(),
+                },
+                Shape {
+                    split: false,
+                    center: IVec2::new(0, 0),
+                    blocks: vec![
+                        IVec2::new(0, -1),
+                        IVec2::new(0, 0),
+                        IVec2::new(1, 0),
+                        IVec2::new(-1, 0),
+                    ],
+                    color: bevy::color::palettes::css::PURPLE.into(),
+                },
+                Shape {
+                    split: false,
+                    center: IVec2::new(0, 0),
+                    blocks: vec![
+                        IVec2::new(0, 2),
+                        IVec2::new(0, 1),
+                        IVec2::new(0, 0),
+                        IVec2::new(-1, 0),
+                    ],
+                    color: bevy::color::palettes::css::DARK_BLUE.into(),
+                },
+                Shape {
+                    split: false,
+                    center: IVec2::new(0, 0),
+                    blocks: vec![
+                        IVec2::new(0, 2),
+                        IVec2::new(0, 1),
+                        IVec2::new(0, 0),
+                        IVec2::new(1, 0),
+                    ],
+                    color: bevy::color::palettes::css::ORANGE.into(),
+                },
+            ],
         }
+        // Deck {
+        //     shapes: vec![Shape {
+        //     split: false,
+        //         center: IVec2::new(0, 1),
+        //         blocks: vec![
+        //             IVec2::new(0, 0),
+        //             IVec2::new(0, -1),
+        //             IVec2::new(0, -2),
+        //             IVec2::new(0, 1),
+        //         ],
+        //         color: bevy::color::palettes::css::LIGHT_BLUE.into(),
+        //     }],
+        // }
     }
 }
 
@@ -144,8 +155,11 @@ impl Default for PlayerTarget {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (player_moves,))
-        .add_systems(Last, remove_player_target)
+    app.add_systems(Update, (player_moves,).run_if(in_state(GameState::Playing)))
+        .add_systems(
+            FixedLast,
+            remove_player_target.run_if(in_state(GameState::Playing)),
+        )
         .add_systems(
             First,
             refill_deck.run_if(|deck: Res<CurrentDeck>| deck.shapes.is_empty()),
@@ -169,11 +183,12 @@ pub fn plugin(app: &mut App) {
 fn player_moves(
     time: Res<Time>,
     settings: Res<ActionState<PlayerInputs>>,
-    mut target: Query<(&mut Shape, &mut PlayerTarget)>,
+    mut target: Query<(Entity, &mut Shape, &mut PlayerTarget)>,
     mut board: ResMut<board::Board>,
     mut last: Local<f32>,
+    mut commands: Commands,
 ) {
-    for (mut shape, mut target) in &mut target {
+    for (entity, mut shape, mut target) in &mut target {
         if settings.just_pressed(&PlayerInputs::MoveLeft) {
             shape.translate(&mut board, IVec2::NEG_X);
             *last = 0.;
@@ -188,6 +203,14 @@ fn player_moves(
             shape.rotate(&mut board);
             *last = 0.;
             target.moved = true;
+        }
+        if settings.pressed(&PlayerInputs::MoveDown) {
+            if shape.translate(&mut board, IVec2::NEG_Y) {
+                target.last_y = 0;
+                target.moved = true;
+            } else {
+                commands.entity(entity).remove::<PlayerTarget>();
+            }
         }
         if !settings.get_pressed().is_empty() {
             *last += time.delta_secs();

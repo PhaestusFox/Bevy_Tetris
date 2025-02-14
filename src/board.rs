@@ -1,6 +1,7 @@
 use bevy::{prelude::*, utils::hashbrown::HashSet};
+use indexmap::IndexSet;
 
-use crate::deck::PlayerTarget;
+use crate::{deck::PlayerTarget, prelude::*, GameState};
 
 // create a resouse that holds the current boaed state linke each position to an entity or none if it is empty
 #[derive(Resource)]
@@ -109,6 +110,7 @@ impl FromWorld for BlockImage {
 
 #[derive(Component, Clone)]
 pub struct Shape {
+    pub split: bool,
     pub center: IVec2,
     pub blocks: Vec<IVec2>,
     pub color: Color,
@@ -142,7 +144,10 @@ impl Shape {
         self.center += offset;
         for (block, target) in self.blocks.iter().zip(old) {
             let block = self.center + block;
-            board.set(block, target.expect("Blocks Should not be empty"));
+            if let Some(target) = target {
+                // todo .expect("Blocks Should not be empty")
+                board.set(block, target);
+            }
         }
         true
     }
@@ -180,7 +185,10 @@ impl Shape {
             block.y = block.x;
             block.x = x;
             let block = self.center + *block;
-            board.set(block, target.expect("Blocks Should not be empty"));
+            if let Some(target) = target {
+                // todo .expect("Blocks Should not be empty")
+                board.set(block, target);
+            }
         }
         true
     }
@@ -197,14 +205,17 @@ impl Shape {
 }
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Update, (spawn_shape, clear_line))
-        .add_systems(PostUpdate, (update_board, update_moved).chain())
-        .add_systems(FixedUpdate, (apply_gravity, spawn_next))
+    app.add_systems(Update, spawn_shape)
+        .add_systems(PostUpdate, (update_board, update_moved, clear_line).chain())
+        .add_systems(
+            FixedUpdate,
+            (apply_gravity, spawn_next).run_if(in_state(GameState::Playing)),
+        )
         .add_systems(FixedFirst, clear_moved)
-        .init_resource::<BlockImage>();
+        .init_resource::<BlockImage>()
+        .add_systems(PostUpdate, split_shape);
+
     app.register_required_components::<Block, Sprite>();
-    #[cfg(debug_assertions)]
-    app.add_systems(PreUpdate, spawn_single);
 }
 
 fn apply_gravity(
@@ -222,21 +233,6 @@ fn apply_gravity(
     }
 }
 
-fn spawn_single(
-    mut commands: Commands,
-    board: ResMut<crate::board::Board>,
-    input: Res<ButtonInput<KeyCode>>,
-) {
-    if !input.just_pressed(KeyCode::Digit1) {
-        return;
-    }
-    let shape = Shape {
-        center: IVec2::new(5, 19),
-        blocks: vec![IVec2::new(0, 0)],
-        color: Color::linear_rgb(1., 0., 0.),
-    };
-}
-
 fn spawn_shape(
     mut commands: Commands,
     shapes: Query<(Entity, &Shape), Added<Shape>>,
@@ -244,6 +240,9 @@ fn spawn_shape(
     block_image: Res<BlockImage>,
 ) {
     for (e, shape) in &shapes {
+        if shape.split {
+            continue;
+        }
         for block in shape.blocks.iter() {
             let block = shape.center + block;
             let id = commands
@@ -274,7 +273,7 @@ fn update_board(mut blocks: Query<&mut Transform>, mut board: ResMut<Board>) {
             warn!("{cell} has invalid entity {entity}");
             continue;
         };
-        block.translation = (cell * 64).extend(1).as_vec3();
+        block.translation = (cell * 32).extend(1).as_vec3();
     }
 }
 
@@ -290,7 +289,7 @@ fn spawn_next(
     let mut shape = deck.next();
     let center = IVec2::new(board.width / 2, board.hight - 1);
     for y in 0..board.hight {
-        for x in 0..board.width / 2 {
+        for x in 0..(board.width / 2) + 1 {
             let next = center - IVec2::new(x, y);
             shape.center = next;
             if shape.can_spawn(&board) {
@@ -314,7 +313,9 @@ fn clear_line(
     blocks: Query<&Block>,
     player: Query<(), With<PlayerTarget>>,
     mut commands: Commands,
+    mut score: ResMut<Score>,
 ) {
+    let mut found = 0;
     'y: for y in 0..board.hight {
         for x in 0..board.width {
             match board.get(IVec2::new(x, y)) {
@@ -365,6 +366,73 @@ fn clear_line(
             shape.blocks.swap_remove(index);
             if shape.blocks.is_empty() {
                 commands.entity(block.shape).despawn_recursive();
+            }
+        }
+        found += 1;
+    }
+    if found > 0 {
+        score.0 += found * found;
+    }
+}
+
+fn split_shape(
+    mut shapes: Query<&mut Shape, Changed<Shape>>,
+    board: Res<Board>,
+    mut blocks: Query<&mut Block>,
+    mut commands: Commands,
+) {
+    for mut shape in &mut shapes {
+        if shape.blocks.is_empty() {
+            continue;
+        };
+        let mut to_check = IndexSet::with_capacity(shape.blocks.len());
+        let mut checked = HashSet::new();
+        let mut valid = Vec::new();
+        to_check.insert(shape.blocks.first().cloned().expect("At least one block"));
+        while let Some(current) = to_check.pop() {
+            if shape.blocks.contains(&current) {
+                valid.push(current);
+                checked.insert(current);
+                let up = current + IVec2::Y;
+                if !checked.contains(&up) {
+                    to_check.insert(up);
+                }
+                let down = current + IVec2::NEG_Y;
+                if !checked.contains(&down) {
+                    to_check.insert(down);
+                }
+                let right = current + IVec2::X;
+                if !checked.contains(&right) {
+                    to_check.insert(right);
+                }
+                let left = current + IVec2::NEG_X;
+                if !checked.contains(&left) {
+                    to_check.insert(left);
+                }
+            }
+        }
+        if shape.blocks.len() != valid.len() {
+            std::mem::swap(&mut shape.blocks, &mut valid);
+            valid.retain(|block| !shape.blocks.contains(block));
+            let new = commands
+                .spawn(Shape {
+                    split: true,
+                    center: shape.center,
+                    blocks: valid.clone(),
+                    color: shape.color,
+                })
+                .id();
+            for block in valid.iter() {
+                let block = block + shape.center;
+                let BlockState::Contains(entity) = board.get(block) else {
+                    error!("Block {block:?} not in board");
+                    continue;
+                };
+                let Ok(mut block) = blocks.get_mut(entity) else {
+                    error!("{entity:?} is not a block");
+                    continue;
+                };
+                block.shape = new;
             }
         }
     }
