@@ -1,5 +1,5 @@
 mod powers;
-use bevy::{prelude::*, utils::HashSet};
+use bevy::{platform_support::collections::HashSet, prelude::*};
 pub use powers::*;
 
 pub fn plugin(app: &mut App) {

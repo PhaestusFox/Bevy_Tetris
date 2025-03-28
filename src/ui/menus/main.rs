@@ -14,7 +14,7 @@ fn open_main_menu(mut commands: Commands, palette: Res<UiPalette>) {
         state.set(Menu::Options);
     });
     let quit = commands.register_system(|mut state: EventWriter<AppExit>| {
-        state.send(AppExit::Success);
+        state.write(AppExit::Success);
     });
 
     commands

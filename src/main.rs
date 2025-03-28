@@ -18,9 +18,10 @@ fn main() {
     .add_plugins((board::plugin, deck::plugin, ui::plugin, blocks::plugin))
     .insert_resource(Time::<Fixed>::from_hz(3.))
     .insert_resource(Score(0))
-    .init_state::<GameState>();
-    #[cfg(debug_assertions)]
-    app.add_plugins(bevy_editor_pls::EditorPlugin::default());
+    .init_state::<GameState>()
+    .add_systems(Update, test_input);
+    // #[cfg(debug_assertions)]
+    // app.add_plugins(bevy_editor_pls::EditorPlugin::default());
     app.run();
 }
 
@@ -112,4 +113,18 @@ pub enum GameState {
     #[default]
     InMenu,
     Playing,
+}
+
+fn test_input(
+    input: Res<ButtonInput<KeyCode>>,
+    leafwing: Res<leafwing_input_manager::prelude::ActionState<deck::PlayerInputs>>,
+) {
+    if input.just_pressed(KeyCode::KeyA) {
+        info!("Key A pressed");
+        if leafwing.just_pressed(&deck::PlayerInputs::MoveLeft) {
+            info!("Move Left pressed");
+        } else {
+            info!("leafwing inputs: {:?}", leafwing.get_pressed());
+        }
+    }
 }

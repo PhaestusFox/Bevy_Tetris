@@ -4,15 +4,55 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-bevy = {version = "0.15", features = ["serialize"]}
-bevy_editor_pls = {git = "https://github.com/jakobhellermann/bevy_editor_pls.git"}
-leafwing-input-manager = "=0.16.0"
+bevy = {version = "0.16.0-rc.2", default-features = false, features = [
+  "std",
+  "async_executor",
+  "android-game-activity",
+  "android_shared_stdcxx",
+  "animation",
+  "bevy_asset",
+  "bevy_audio",
+  "bevy_color",
+  "bevy_core_pipeline",
+  "bevy_gilrs",
+  "bevy_gizmos",
+  "bevy_gltf",
+  "bevy_input_focus",
+  "bevy_log",
+  "bevy_mesh_picking_backend",
+  "bevy_pbr",
+  "bevy_picking",
+  "bevy_render",
+  "bevy_scene",
+  "bevy_sprite",
+  "bevy_sprite_picking_backend",
+  "bevy_state",
+  "bevy_ui",
+  "bevy_ui_picking_backend",
+  "bevy_window",
+  "bevy_winit",
+  "custom_cursor",
+  "default_font",
+  "hdr",
+  "multi_threaded",
+  "png",
+  "smaa_luts",
+  "sysinfo_plugin",
+  "tonemapping_luts",
+  "vorbis",
+  "webgl2",
+  "x11",
+  "serialize"]}
+# bevy_editor_pls = {git = "https://github.com/jakobhellermann/bevy_editor_pls.git"}
+leafwing-input-manager = {path = "../../deps/leafwing-input-manager"}
 rand = "*"
-bevy_pkv = "0.12"
+bevy_pkv = {path = "../../deps/bevy_pkv"}
 serde = "*"
 strum = "*"
 strum_macros = "*"
 indexmap = "*"
 
 [patch.crates-io]
-transform-gizmo-bevy = { git = "https://github.com/ActuallyHappening/transform-gizmo" }
+# transform-gizmo-bevy = { git = "https://github.com/ActuallyHappening/transform-gizmo" }
+leafwing-input-manager = {git = "https://github.com/PhaestusFox/leafwing-input-manager"}
+bevy_pkv = {git = "https://github.com/PhaestusFox/bevy_pkv"}

@@ -4,7 +4,10 @@ use crate::{
     prelude::*,
     GameState,
 };
-use bevy::{prelude::*, utils::hashbrown::HashSet};
+use bevy::{
+    platform_support::{collections::HashSet, hash::FixedHasher},
+    prelude::*,
+};
 use indexmap::IndexSet;
 use rand::Rng;
 
@@ -28,7 +31,7 @@ impl Default for Board {
             width: 10,
             hight: 20,
             board: vec![None; 10 * 20],
-            changed: HashSet::new(),
+            changed: HashSet::with_hasher(FixedHasher),
             has_moved: false,
         }
     }
@@ -261,7 +264,7 @@ fn spawn_shape(
     mut board: ResMut<crate::board::Board>,
     block_image: Res<BlockImage>,
 ) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     for (e, shape) in &shapes {
         if shape.split {
             continue;
@@ -273,7 +276,7 @@ fn spawn_shape(
                     Block {
                         shape: e,
                         moved: true,
-                        effects: HashSet::new(),
+                        effects: HashSet::with_hasher(FixedHasher),
                     },
                     Transform::from_translation((block * 64).as_vec2().extend(1.)),
                     Sprite {
@@ -283,7 +286,7 @@ fn spawn_shape(
                     },
                 ))
                 .id();
-            if rng.gen_bool(0.1) {
+            if rng.random_bool(0.1) {
                 commands.entity(id).insert(crate::blocks::Lightning);
             }
             board.set(block, id);
@@ -310,7 +313,7 @@ fn spawn_next(
     board: Res<Board>,
     mut commands: Commands,
 ) {
-    if board.has_moved || active.get_single().is_ok() {
+    if board.has_moved || active.single().is_ok() {
         return;
     };
     let mut shape = deck.next();
@@ -385,7 +388,7 @@ fn clear_line(
                 error!("{entity} is not a block");
                 continue;
             };
-            commands.entity(entity).despawn_recursive();
+            commands.entity(entity).despawn();
             let Ok(mut shape) = shapes.get_mut(block.shape) else {
                 error!("{} is not a shape", block.shape);
                 continue;
@@ -400,7 +403,7 @@ fn clear_line(
             }
             shape.blocks.swap_remove(index);
             if shape.blocks.is_empty() {
-                commands.entity(block.shape).despawn_recursive();
+                commands.entity(block.shape).despawn();
             }
             shape.calc_center();
         }

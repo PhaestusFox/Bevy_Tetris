@@ -1,6 +1,6 @@
 mod lightning;
 
-use bevy::{prelude::*, utils::HashSet};
+use bevy::prelude::*;
 pub use lightning::*;
 
 use super::Block;

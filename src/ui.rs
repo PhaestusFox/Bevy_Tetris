@@ -345,6 +345,7 @@ pub struct UiPalette {
     pub click_color: Color,
 }
 
+#[allow(clippy::type_complexity)]
 fn update_palette(
     mut elements: ParamSet<(
         Query<&mut BackgroundColor, With<Button>>,
@@ -407,13 +408,16 @@ impl Component for MenuButton {
     const STORAGE_TYPE: bevy::ecs::component::StorageType =
         bevy::ecs::component::StorageType::Table;
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        hooks.on_replace(|mut world, target, _| {
-            let buttons = *world.get::<MenuButton>(target).expect("About to remove");
+        hooks.on_replace(|mut world, ctx| {
+            let buttons = *world
+                .get::<MenuButton>(ctx.entity)
+                .expect("About to remove");
             if buttons.cleanup {
                 world.commands().unregister_system(buttons.on_click);
             }
         });
     }
+    type Mutability = bevy::ecs::component::Immutable;
 }
 
 fn fill_text(
@@ -427,9 +431,10 @@ fn fill_text(
         if let MyFont::Custom(size) = size {
             info!("{}", size);
         }
+
         commands
             .entity(parent)
-            .despawn_descendants()
+            .despawn_related::<Children>()
             .with_children(|p| {
                 for mut letter in text.chars() {
                     if letter.is_lowercase() {

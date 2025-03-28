@@ -17,18 +17,22 @@ pub struct ColorWidget {
     pub on_submit: SystemId<In<Color>>,
 }
 
+#[derive(Component)]
+struct Swatch;
+
 impl Component for ColorWidget {
     const STORAGE_TYPE: bevy::ecs::component::StorageType =
         bevy::ecs::component::StorageType::Table;
     fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        hooks.on_remove(|mut world, entity, _| {
+        hooks.on_remove(|mut world, ctx| {
             let widget = world
-                .get::<ColorWidget>(entity)
+                .get::<ColorWidget>(ctx.entity)
                 .expect("About to remove")
                 .on_submit;
             world.commands().unregister_system(widget);
         });
     }
+    type Mutability = bevy::ecs::component::Mutable;
 }
 
 fn spawn_color_widget(
@@ -52,21 +56,22 @@ fn spawn_color_widget(
             ))
             .id();
         bg.0 = palette.background;
-        commands.entity(root).insert_children(0, &[swatch]);
+        commands.entity(root).add_child(swatch);
         if let Some(name) = name {
             commands.spawn((
                 name_node(),
                 MyText(name.to_uppercase().into()),
                 MyFont::Custom(10.),
+                ChildOf { parent: root },
             ))
         } else {
             commands.spawn((
                 name_node(),
                 MyText("Color Widget".into()),
                 MyFont::Custom(10.),
+                ChildOf { parent: root },
             ))
-        }
-        .set_parent(root);
+        };
         let c = palette.background.to_linear();
         let set_red =
             commands.register_system(move |val: In<f32>, mut wheels: Query<&mut ColorWidget>| {
@@ -170,19 +175,15 @@ enum Buttons {
 }
 
 fn update_swatch(
-    mut swatchs: Query<&mut BackgroundColor>,
-    widgets: Query<(Entity, &ColorWidget, &Children), Changed<ColorWidget>>,
+    mut swatchs: Query<&mut BackgroundColor, With<Swatch>>,
+    widgets: Query<(&ColorWidget, &Children), Changed<ColorWidget>>,
 ) {
-    for (entity, color, children) in &widgets {
-        let Some(first) = children.first() else {
-            warn!("Color Widget {:?} Missing Swatch", entity);
-            continue;
-        };
-        let Ok(mut swatch) = swatchs.get_mut(*first) else {
-            error!("{:?} has not background Color", first);
-            continue;
-        };
-        swatch.0 = color.current.into();
+    for (color, children) in &widgets {
+        for child in children {
+            if let Ok(mut swatch) = swatchs.get_mut(*child) {
+                swatch.0 = color.current.into();
+            }
+        }
     }
 }
 
@@ -203,7 +204,7 @@ fn color_widget_node() -> Node {
 
 fn color_wheel_buttons(
     root: Query<&ColorWidget>,
-    hierarchy: Query<&Parent>,
+    hierarchy: Query<&ChildOf>,
     buttons: Query<(Entity, &Buttons, &Interaction), Changed<Interaction>>,
     mut commands: Commands,
 ) {
@@ -215,12 +216,12 @@ fn color_wheel_buttons(
         match button {
             Buttons::Submit => {
                 if let Ok(root) = root.get(root_entity) {
-                    commands.run_system_with_input(root.on_submit, root.current.into());
+                    commands.run_system_with(root.on_submit, root.current.into());
                 }
-                commands.entity(root_entity).despawn_recursive();
+                commands.entity(root_entity).despawn();
             }
             Buttons::Close => {
-                commands.entity(root_entity).despawn_recursive();
+                commands.entity(root_entity).despawn();
             }
         }
     }

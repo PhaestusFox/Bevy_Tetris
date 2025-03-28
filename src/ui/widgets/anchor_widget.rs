@@ -17,23 +17,23 @@ pub fn spawn_anchor(mut anchors: Query<Entity, Added<AnchorWidget>>, mut command
                 BackgroundColor(Color::srgb(0.2, 0.2, 0.2)),
                 anchor_node(),
                 Anchor,
+                ChildOf { parent: entity },
             ))
-            .set_parent(entity)
             .observe(move_question_mark);
     }
 }
 
 pub fn move_question_mark(
     event: Trigger<Pointer<Drag>>,
-    parent: Query<&Parent>,
+    leafs: Query<&ChildOf>,
     mut root: Query<&mut Node>,
 ) {
-    let Ok(parent) = parent.get(event.entity()) else {
-        error!("{:?} has no parent", event.entity());
+    let Ok(leaf) = leafs.get(event.target) else {
+        error!("{:?} has no parent", event.target);
         return;
     };
-    let Ok(mut root) = root.get_mut(parent.get()) else {
-        error!("{:?} has no node", parent);
+    let Ok(mut root) = root.get_mut(leaf.parent) else {
+        error!("{:?} has no node", leaf);
         return;
     };
     if let Val::Px(ref mut x) = root.left {

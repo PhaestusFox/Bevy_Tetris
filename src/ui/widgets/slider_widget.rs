@@ -41,36 +41,36 @@ pub fn spawn_slider(
                     ..slider_node()
                 },
                 SliderNob { start: 0. },
+                ChildOf { parent: entity },
             ))
-            .set_parent(entity)
             .observe(move_question_mark)
             .observe(set_start);
     }
 }
 
 pub fn set_start(event: Trigger<Pointer<DragStart>>, mut nob: Query<(&mut SliderNob, &Node)>) {
-    let Ok((mut nob, node)) = nob.get_mut(event.entity()) else {
-        error!("{:?} is not a nob", event.entity());
+    let Ok((mut nob, node)) = nob.get_mut(event.target) else {
+        error!("{:?} is not a nob", event.target);
         return;
     };
     if let Val::Percent(start) = node.left {
         nob.start = start;
         info!("Set Start to {}", start);
     } else {
-        warn!("nob{:?} left must be in Val::Percent", event.entity());
+        warn!("nob{:?} left must be in Val::Percent", event.target);
     }
 }
 
 pub fn move_question_mark(
     event: Trigger<Pointer<Drag>>,
-    mut nob: Query<(&Parent, &ComputedNode, &SliderNob, &mut Node)>,
+    mut nob: Query<(&ChildOf, &ComputedNode, &SliderNob, &mut Node)>,
     mut root: Query<(&mut SliderWidget, &ComputedNode)>,
 ) {
-    let Ok((parent, comp, nob, mut node)) = nob.get_mut(event.entity()) else {
-        error!("{:?} has no parent", event.entity());
+    let Ok((parent, comp, nob, mut node)) = nob.get_mut(event.target) else {
+        error!("{:?} has no parent", event.target);
         return;
     };
-    let Ok((mut slider, computed)) = root.get_mut(parent.get()) else {
+    let Ok((mut slider, computed)) = root.get_mut(parent.parent) else {
         error!("{:?} has no node", parent);
         return;
     };
@@ -87,7 +87,7 @@ pub fn move_question_mark(
 pub fn update_slider(sliders: Query<&SliderWidget, Changed<SliderWidget>>, mut commands: Commands) {
     for slider in &sliders {
         let value = slider.value();
-        commands.run_system_with_input(slider.on_change, value);
+        commands.run_system_with(slider.on_change, value);
     }
 }
 

@@ -3,7 +3,6 @@ use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
 
 use crate::{
-    blocks::Block,
     board::{self, Shape},
     GameState,
 };
@@ -148,7 +147,7 @@ impl FromWorld for CurrentDeck {
         let mut deck = CurrentDeck {
             shapes: deck.shapes.to_vec(),
         };
-        deck.shapes.shuffle(&mut rand::thread_rng());
+        deck.shapes.shuffle(&mut rand::rng());
         deck
     }
 }
