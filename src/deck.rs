@@ -3,7 +3,8 @@ use leafwing_input_manager::prelude::*;
 use rand::seq::SliceRandom;
 
 use crate::{
-    board::{self, Block, Shape},
+    blocks::Block,
+    board::{self, Shape},
     GameState,
 };
 
@@ -14,7 +15,7 @@ pub struct Deck {
 
 impl FromWorld for Deck {
     fn from_world(_world: &mut World) -> Self {
-        Deck {
+        let mut deck = Deck {
             shapes: vec![
                 Shape {
                     split: false,
@@ -26,6 +27,7 @@ impl FromWorld for Deck {
                         IVec2::new(0, 1),
                     ],
                     color: bevy::color::palettes::css::LIGHT_BLUE.into(),
+                    center_of_mass: Vec2::ZERO,
                 },
                 Shape {
                     split: false,
@@ -37,6 +39,7 @@ impl FromWorld for Deck {
                         IVec2::new(1, -1),
                     ],
                     color: bevy::color::palettes::css::RED.into(),
+                    center_of_mass: Vec2::ZERO,
                 },
                 Shape {
                     split: false,
@@ -48,6 +51,7 @@ impl FromWorld for Deck {
                         IVec2::new(-1, -1),
                     ],
                     color: bevy::color::palettes::css::YELLOW.into(),
+                    center_of_mass: Vec2::ZERO,
                 },
                 Shape {
                     split: false,
@@ -59,17 +63,19 @@ impl FromWorld for Deck {
                         IVec2::new(1, -1),
                     ],
                     color: bevy::color::palettes::css::LIGHT_GREEN.into(),
+                    center_of_mass: Vec2::ZERO,
                 },
                 Shape {
                     split: false,
                     center: IVec2::new(0, 0),
                     blocks: vec![
-                        IVec2::new(0, -1),
                         IVec2::new(0, 0),
-                        IVec2::new(1, 0),
                         IVec2::new(-1, 0),
+                        IVec2::new(1, 0),
+                        IVec2::new(0, 1),
                     ],
                     color: bevy::color::palettes::css::PURPLE.into(),
+                    center_of_mass: Vec2::ZERO,
                 },
                 Shape {
                     split: false,
@@ -81,6 +87,7 @@ impl FromWorld for Deck {
                         IVec2::new(-1, 0),
                     ],
                     color: bevy::color::palettes::css::DARK_BLUE.into(),
+                    center_of_mass: Vec2::ZERO,
                 },
                 Shape {
                     split: false,
@@ -92,10 +99,11 @@ impl FromWorld for Deck {
                         IVec2::new(1, 0),
                     ],
                     color: bevy::color::palettes::css::ORANGE.into(),
+                    center_of_mass: Vec2::ZERO,
                 },
             ],
-        }
-        // Deck {
+        };
+        // let mut deck = Deck {
         //     shapes: vec![Shape {
         //     split: false,
         //         center: IVec2::new(0, 1),
@@ -106,8 +114,26 @@ impl FromWorld for Deck {
         //             IVec2::new(0, 1),
         //         ],
         //         color: bevy::color::palettes::css::LIGHT_BLUE.into(),
+        //center_of_mass: Vec2::ZERO,
         //     }],
-        // }
+        // };
+        // deck.shapes.clear();
+        // deck.shapes.push(Shape {
+        //     split: false,
+        //     center: IVec2::new(0, 0),
+        //     blocks: vec![
+        //         IVec2::new(0, 0),
+        //         IVec2::new(-1, 0),
+        //         IVec2::new(1, 0),
+        //         IVec2::new(0, 1),
+        //     ],
+        //     color: bevy::color::palettes::css::PURPLE.into(),
+        //     center_of_mass: Vec2::ZERO,
+        // });
+        for shape in deck.shapes.iter_mut() {
+            shape.calc_center();
+        }
+        deck
     }
 }
 
@@ -139,7 +165,7 @@ fn refill_deck(mut current: ResMut<CurrentDeck>, deck: Res<Deck>) {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub struct PlayerTarget {
     pub last_y: u8,
     pub moved: bool,

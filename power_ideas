@@ -2,6 +2,8 @@ sand_block - dose not sick to its shape once landed
 gravity block - allow gaps in shape
 lightning block - will complete row even if blocks are still falling
 wight block - sets the pivot point and makes block fall faster
+glue - blocks stick to first adjacet block on glued size (fuse shapes)
+honey - glue but all sides
 math block
     - Number - makes a block worth that for clearing
     - Mult - multiplies the rows value before buy the value after/before next math block

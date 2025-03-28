@@ -2,23 +2,26 @@ use bevy::{input::mouse::AccumulatedMouseScroll, prelude::*};
 
 use prelude::*;
 
+mod blocks;
+
 fn main() {
-    App::new()
-        .add_plugins((
-            DefaultPlugins.set(ImagePlugin::default_nearest()),
-            bevy_editor_pls::EditorPlugin::default(),
-            leafwing_input_manager::prelude::InputManagerPlugin::<deck::PlayerInputs>::default(),
-        ))
-        .insert_resource(bevy_pkv::PkvStore::new("Phox", "Tetris"))
-        .add_systems(OnEnter(GameState::Playing), make_board)
-        .add_systems(Startup, spawn_camera)
-        .add_systems(Update, scroll_camera)
-        .init_resource::<board::Board>()
-        .add_plugins((board::plugin, deck::plugin, ui::plugin))
-        .insert_resource(Time::<Fixed>::from_hz(3.))
-        .insert_resource(Score(0))
-        .init_state::<GameState>()
-        .run();
+    let mut app = App::new();
+    app.add_plugins((
+        DefaultPlugins.set(ImagePlugin::default_nearest()),
+        leafwing_input_manager::prelude::InputManagerPlugin::<deck::PlayerInputs>::default(),
+    ))
+    .insert_resource(bevy_pkv::PkvStore::new("Phox", "Tetris"))
+    .add_systems(OnEnter(GameState::Playing), make_board)
+    .add_systems(Startup, spawn_camera)
+    .add_systems(Update, scroll_camera)
+    .init_resource::<board::Board>()
+    .add_plugins((board::plugin, deck::plugin, ui::plugin, blocks::plugin))
+    .insert_resource(Time::<Fixed>::from_hz(3.))
+    .insert_resource(Score(0))
+    .init_state::<GameState>();
+    #[cfg(debug_assertions)]
+    app.add_plugins(bevy_editor_pls::EditorPlugin::default());
+    app.run();
 }
 
 fn spawn_camera(mut commands: Commands) {
@@ -94,7 +97,7 @@ pub mod prelude {
 
     pub(crate) use super::GameState;
 
-    #[derive(Resource)]
+    #[derive(Resource, Deref, DerefMut)]
     pub struct Score(pub i32);
 
     #[derive(strum_macros::AsRefStr)]

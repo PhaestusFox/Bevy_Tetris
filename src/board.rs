@@ -1,7 +1,12 @@
+use crate::{
+    blocks::{Block, Effect},
+    deck::PlayerTarget,
+    prelude::*,
+    GameState,
+};
 use bevy::{prelude::*, utils::hashbrown::HashSet};
 use indexmap::IndexSet;
-
-use crate::{deck::PlayerTarget, prelude::*, GameState};
+use rand::Rng;
 
 // create a resouse that holds the current boaed state linke each position to an entity or none if it is empty
 #[derive(Resource)]
@@ -10,6 +15,11 @@ pub struct Board {
     hight: i32,
     board: Vec<Option<Entity>>,
     changed: HashSet<IVec2>,
+    has_moved: bool,
+}
+
+fn clear_changed(mut board: ResMut<Board>) {
+    board.has_moved = false;
 }
 
 impl Default for Board {
@@ -19,6 +29,7 @@ impl Default for Board {
             hight: 20,
             board: vec![None; 10 * 20],
             changed: HashSet::new(),
+            has_moved: false,
         }
     }
 }
@@ -35,14 +46,17 @@ impl Board {
     }
     pub fn set(&mut self, block: IVec2, entity: Entity) {
         self.changed.insert(block);
+        self.has_moved = true;
         self.board[(block.y * self.width + block.x) as usize] = Some(entity);
     }
     pub fn clear(&mut self, block: IVec2) {
         self.changed.insert(block);
+        self.has_moved = true;
         self.board[(block.y * self.width + block.x) as usize] = None;
     }
     pub fn take(&mut self, block: IVec2) -> Option<Entity> {
         self.changed.insert(block);
+        self.has_moved = true;
         std::mem::take(&mut self.board[(block.y * 10 + block.x) as usize])
     }
 }
@@ -54,12 +68,6 @@ pub enum BlockState {
     Contains(Entity),
 }
 
-#[derive(Clone, Copy)]
-pub struct Block {
-    pub shape: Entity,
-    pub moved: bool,
-}
-
 fn clear_moved(mut blocks: Query<&mut Block>) {
     for mut block in &mut blocks {
         block.moved = false;
@@ -69,27 +77,6 @@ fn clear_moved(mut blocks: Query<&mut Block>) {
 fn update_moved(mut blocks: Query<&mut Block, Changed<Transform>>) {
     for mut block in &mut blocks {
         block.moved = true;
-    }
-}
-
-impl Component for Block {
-    const STORAGE_TYPE: bevy::ecs::component::StorageType =
-        bevy::ecs::component::StorageType::Table;
-    fn register_component_hooks(hooks: &mut bevy::ecs::component::ComponentHooks) {
-        // hooks.on_insert(|mut world, entity, _| {
-        //     let pos = *world.get::<Block>(entity).expect("Just Inserted");
-        //     world
-        //         .get_resource_mut::<BoardState>()
-        //         .expect("Board always exists")
-        //         .set(pos.position, entity);
-        // });
-        // hooks.on_replace(|mut world, entity, _| {
-        //     let pos = *world.get::<Block>(entity).expect("About to replace");
-        //     world
-        //         .get_resource_mut::<BoardState>()
-        //         .expect("Board always exists")
-        //         .clear(pos.position.x, pos.position.y);
-        // });
     }
 }
 
@@ -114,9 +101,18 @@ pub struct Shape {
     pub center: IVec2,
     pub blocks: Vec<IVec2>,
     pub color: Color,
+    pub center_of_mass: Vec2,
 }
 
 impl Shape {
+    pub fn calc_center(&mut self) {
+        let mut com = Vec2::ZERO;
+        for block in self.blocks.iter() {
+            com += block.as_vec2();
+        }
+        com /= self.blocks.len() as f32;
+        self.center_of_mass = com;
+    }
     pub fn can_translate(&self, board: &Board, offset: IVec2) -> bool {
         let mut can_move = true;
         for block in self.blocks.iter() {
@@ -153,12 +149,18 @@ impl Shape {
     }
 
     pub fn can_rotate(&self, board: &Board) -> bool {
+        let com = (self.center_of_mass * 2.).round() / 2.;
         let mut can_move = true;
         for block in self.blocks.iter() {
-            let mut next = IVec2 {
-                x: -block.y,
-                y: block.x,
-            };
+            let next_block = block.as_vec2() - com;
+
+            let mut next = (Vec2 {
+                x: -next_block.y - com.y,
+                y: next_block.x + com.x,
+            })
+            .floor()
+            .as_ivec2();
+
             if self.blocks.contains(&next) {
                 continue;
             };
@@ -175,19 +177,35 @@ impl Shape {
         if !self.can_rotate(board) {
             return false;
         }
+        let com = (self.center_of_mass * 2.).round() / 2.;
         let mut old = Vec::new();
         for block in self.blocks.iter() {
             let block = self.center + block;
-            old.push(board.take(block));
+            old.push((board.take(block), block));
         }
-        for (block, target) in self.blocks.iter_mut().zip(old) {
-            let x = -block.y;
-            block.y = block.x;
-            block.x = x;
-            let block = self.center + *block;
-            if let Some(target) = target {
+        for (block, target) in self.blocks.iter_mut().zip(&mut old) {
+            let next_block = block.as_vec2() - com;
+            let next = Vec2 {
+                x: -next_block.y - com.y,
+                y: next_block.x + com.x,
+            }
+            .round()
+            .as_ivec2();
+
+            // let x = -block.y;
+            // block.y = block.x;
+            // block.x = x;
+            *block = next;
+            let block = self.center + next;
+            if let (Some(_), new) = target {
+                *new = block;
+            }
+        }
+        self.calc_center();
+        for (block, new) in old {
+            if let Some(target) = block {
                 // todo .expect("Blocks Should not be empty")
-                board.set(block, target);
+                board.set(new, target);
             }
         }
         true
@@ -206,16 +224,20 @@ impl Shape {
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, spawn_shape)
-        .add_systems(PostUpdate, (update_board, update_moved, clear_line).chain())
+        .add_systems(PostUpdate, (update_board, update_moved).chain())
         .add_systems(
             FixedUpdate,
-            (apply_gravity, spawn_next).run_if(in_state(GameState::Playing)),
+            (apply_gravity, spawn_next, clear_line).run_if(in_state(GameState::Playing)),
         )
         .add_systems(FixedFirst, clear_moved)
         .init_resource::<BlockImage>()
         .add_systems(PostUpdate, split_shape);
-
+    app.add_systems(FixedFirst, clear_changed)
+        .add_systems(FixedLast, score_line)
+        .init_resource::<LineInfo>();
     app.register_required_components::<Block, Sprite>();
+    #[cfg(debug_assertions)]
+    app.add_systems(Update, show_center_of_mass);
 }
 
 fn apply_gravity(
@@ -239,6 +261,7 @@ fn spawn_shape(
     mut board: ResMut<crate::board::Board>,
     block_image: Res<BlockImage>,
 ) {
+    let mut rng = rand::thread_rng();
     for (e, shape) in &shapes {
         if shape.split {
             continue;
@@ -250,6 +273,7 @@ fn spawn_shape(
                     Block {
                         shape: e,
                         moved: true,
+                        effects: HashSet::new(),
                     },
                     Transform::from_translation((block * 64).as_vec2().extend(1.)),
                     Sprite {
@@ -259,6 +283,9 @@ fn spawn_shape(
                     },
                 ))
                 .id();
+            if rng.gen_bool(0.1) {
+                commands.entity(id).insert(crate::blocks::Lightning);
+            }
             board.set(block, id);
         }
     }
@@ -283,7 +310,7 @@ fn spawn_next(
     board: Res<Board>,
     mut commands: Commands,
 ) {
-    if active.get_single().is_ok() {
+    if board.has_moved || active.get_single().is_ok() {
         return;
     };
     let mut shape = deck.next();
@@ -313,10 +340,12 @@ fn clear_line(
     blocks: Query<&Block>,
     player: Query<(), With<PlayerTarget>>,
     mut commands: Commands,
-    mut score: ResMut<Score>,
+    mut score: ResMut<LineInfo>,
 ) {
     let mut found = 0;
     'y: for y in 0..board.hight {
+        let mut fast = false;
+        let mut has_moving = false;
         for x in 0..board.width {
             match board.get(IVec2::new(x, y)) {
                 BlockState::Empty => {
@@ -328,16 +357,22 @@ fn clear_line(
                         continue 'y;
                     };
                     if block.moved {
-                        continue 'y;
+                        has_moving = true;
                     }
-                    let Err(_) = player.get(block.shape) else {
-                        continue 'y;
+                    if player.get(block.shape).is_ok() {
+                        has_moving = true;
                     };
+                    if block.effects.contains(&Effect::Fast) {
+                        fast = true;
+                    }
                 }
                 BlockState::OutOfBounds => {
-                    continue 'y;
+                    unreachable!("don't check out of bounds for lines")
                 }
             }
+        }
+        if has_moving && !fast {
+            continue;
         }
         for x in 0..board.width {
             let pos = IVec2::new(x, y);
@@ -367,21 +402,35 @@ fn clear_line(
             if shape.blocks.is_empty() {
                 commands.entity(block.shape).despawn_recursive();
             }
+            shape.calc_center();
         }
         found += 1;
     }
     if found > 0 {
-        score.0 += found * found;
+        score.chain += found;
     }
 }
 
+#[derive(Resource, Default)]
+struct LineInfo {
+    chain: i32,
+}
+
+fn score_line(board: Res<Board>, mut line_info: ResMut<LineInfo>, mut score: ResMut<Score>) {
+    if board.has_moved {
+        return;
+    }
+    score.0 += line_info.chain * line_info.chain;
+    line_info.chain = 0;
+}
+
 fn split_shape(
-    mut shapes: Query<&mut Shape, Changed<Shape>>,
+    mut shapes: Query<(&mut Shape, Option<&PlayerTarget>), Changed<Shape>>,
     board: Res<Board>,
     mut blocks: Query<&mut Block>,
     mut commands: Commands,
 ) {
-    for mut shape in &mut shapes {
+    for (mut shape, target) in &mut shapes {
         if shape.blocks.is_empty() {
             continue;
         };
@@ -414,14 +463,19 @@ fn split_shape(
         if shape.blocks.len() != valid.len() {
             std::mem::swap(&mut shape.blocks, &mut valid);
             valid.retain(|block| !shape.blocks.contains(block));
-            let new = commands
-                .spawn(Shape {
-                    split: true,
-                    center: shape.center,
-                    blocks: valid.clone(),
-                    color: shape.color,
-                })
-                .id();
+            shape.calc_center();
+            let mut new_shape = Shape {
+                split: true,
+                center: shape.center,
+                blocks: valid.clone(),
+                color: shape.color,
+                center_of_mass: Vec2::ZERO,
+            };
+            new_shape.calc_center();
+            let new = commands.spawn(new_shape).id();
+            if let Some(target) = target {
+                commands.entity(new).insert(*target);
+            }
             for block in valid.iter() {
                 let block = block + shape.center;
                 let BlockState::Contains(entity) = board.get(block) else {
@@ -435,5 +489,26 @@ fn split_shape(
                 block.shape = new;
             }
         }
+    }
+}
+
+fn show_center_of_mass(
+    blocks: Query<&Transform>,
+    shapes: Query<&Shape>,
+    board: Res<Board>,
+    mut gizmos: Gizmos,
+) {
+    for shape in &shapes {
+        let center = shape.center;
+        gizmos.rect_2d(
+            Isometry2d::from_translation(center.as_vec2() * 32.),
+            Vec2::splat(16.),
+            Color::WHITE,
+        );
+        gizmos.rect_2d(
+            Isometry2d::from_translation((center.as_vec2() + shape.center_of_mass) * 32.),
+            Vec2::splat(16.),
+            bevy::color::palettes::css::RED,
+        );
     }
 }
